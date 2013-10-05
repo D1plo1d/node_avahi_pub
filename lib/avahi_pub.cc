@@ -1,6 +1,7 @@
 #include <node.h>
 #include <v8.h>
 
+#if __linux
 extern "C" {
 
 /***
@@ -348,30 +349,42 @@ Handle<Value> NodeAvahiPubService::Remove(const Arguments& args) {
   return scope.Close(args.This());
 }
 
+#else
+using namespace v8;
+#endif
 
 
 
 
 Handle<Value> Publish(const Arguments& args) {
   HandleScope scope;
-  // NodeAvahiPubService::NewInstance(args);
-  return scope.Close(NodeAvahiPubService::NewInstance(args));
+  #if __linux
+    return scope.Close(NodeAvahiPubService::NewInstance(args));
+  #else
+    return scope.Close(Undefined());
+  #endif
 }
 
 Handle<Value> Init(const Arguments& args) {
   HandleScope scope;
-  node_avahi_pub_init();
+  #if __linux
+    node_avahi_pub_init();
+  #endif
   return scope.Close(Undefined());
 }
 
 Handle<Value> Poll(const Arguments& args) {
   HandleScope scope;
-  node_avahi_pub_poll();
+  #if __linux
+    node_avahi_pub_poll();
+  #endif
   return scope.Close(Undefined());
 }
 
 void init(Handle<Object> exports) {
-  NodeAvahiPubService::Init();
+  #if __linux
+    NodeAvahiPubService::Init();
+  #endif
   exports->Set(String::NewSymbol("publish"),
       FunctionTemplate::New(Publish)->GetFunction());
   exports->Set(String::NewSymbol("poll"),

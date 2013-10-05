@@ -10,6 +10,12 @@ that limitation.
 
 ## API
 
+### isSupported()
+
+Returns `true` if the platform is supported by node\_avahi\_pub.
+
+### publish( [opts] )
+
 Services are announced by calling the publish method:
 
 `require('./avahi_pub').publish( [opts] )`
