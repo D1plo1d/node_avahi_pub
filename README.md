@@ -2,6 +2,12 @@
 
 Quick and dirty Node bindings for Avahi service advertisements.
 
+## Why?
+
+Node MDNS used Avahi's bonjour compatibility API which meant advertisements 
+didn't work. Node Avahi Pub uses the native Avahi API directly to get around 
+that limitation.
+
 ## API
 
 Services are announced by calling the publish method:
