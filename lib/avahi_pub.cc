@@ -50,6 +50,7 @@ struct ServiceInfo {
   char* name;
   char* type;
   char* data;
+  int port;
   AvahiEntryGroup* group;
   AvahiClient* client;
 };
@@ -126,7 +127,7 @@ static void create_services(AvahiClient *c, ServiceInfo * userdata) {
         /* Add the service */
         ret = avahi_entry_group_add_service(
           userdata->group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, name, userdata->type,
-          NULL, NULL, 651, userdata->data, NULL
+          NULL, NULL, userdata->port, userdata->data, NULL
         );
         if (ret < 0) {
             if (ret == AVAHI_ERR_COLLISION)
@@ -317,6 +318,8 @@ Handle<Value> NodeAvahiPubService::New(const Arguments& args) {
   v8::String::Utf8Value data(
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("data")) )
   );
+  int port =
+    v8::Handle<v8::Integer>::Cast( opts->Get(String::NewSymbol("port")) )->Value();
 
   NodeAvahiPubService* obj = new NodeAvahiPubService();
 
@@ -325,6 +328,7 @@ Handle<Value> NodeAvahiPubService::New(const Arguments& args) {
   serviceInfo.name = *name;
   serviceInfo.type = *type;
   serviceInfo.data = *data;
+  serviceInfo.port = port;
   serviceInfo.group = NULL;
 
   node_avahi_pub_publish(&serviceInfo);

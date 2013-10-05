@@ -5,7 +5,7 @@
 # echo 'PATH="$PATH:/usr/lib/node_modules/npm/bin/"' > ~/.bashrc
 # sudo npm install -g coffee-script
 
-# rm ./build/Release/avahi_pub.node; node-gyp configure build; coffee ./example.coffee
+# rm ./build/Release/avahi_pub.node; node-gyp configure build && coffee ./example.coffee
 
 # g++ -fpermissive test.c -o test -L/usr/lib/i386-linux-gnu/ -lavahi-client -lavahi-common
 

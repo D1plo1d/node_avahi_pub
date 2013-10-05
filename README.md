@@ -18,6 +18,7 @@ Opts are as follows (avahi_pub needs all of them to be defined):
 
 * **name** - the advertised name of the service
 * **type** - the type of the service (ex. `_http._tcp`)
+* **port** - the port number the service is accessible on
 * **data** - the txt data for the service
 
 **return**: calling publish returns a new service object
