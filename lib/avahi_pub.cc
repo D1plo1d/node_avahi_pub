@@ -51,6 +51,7 @@ struct ServiceInfo {
   char* type;
   char* data;
   AvahiEntryGroup* group;
+  AvahiClient* client;
 };
 
 static void create_services(AvahiClient *c, ServiceInfo * userdata);
@@ -108,7 +109,6 @@ static void create_services(AvahiClient *c, ServiceInfo * userdata) {
     if (!(userdata->group))
     {
         if (!((userdata->group) = avahi_entry_group_new(c, entry_group_callback, userdata))) {
-          fprintf(stderr, "wut1.2\n");
             fprintf(stderr, "avahi_entry_group_new() failed: %s\n", 
               avahi_strerror(avahi_client_errno(c)));
             goto fail;
@@ -168,12 +168,10 @@ fail:
 static void client_callback(AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED ServiceInfo * userdata) {
     assert(c);
 
-    fprintf(stderr, "\nwhat the fuck?\n");
     /* Called whenever the client or server state changes */
 
     switch (state) {
         case AVAHI_CLIENT_S_RUNNING:
-            fprintf(stderr, "\nwhat the fuck?\n");
 
             /* The server has startup successfully and registered its host
              * name on the network, so it's time to create our services */
@@ -222,6 +220,7 @@ void node_avahi_pub_publish(struct ServiceInfo* serviceInfo) {
 
     /* Allocate a new client */
     client = avahi_client_new(avahi_simple_poll_get(simple_poll), 0, client_callback, serviceInfo, &error);
+    serviceInfo->client = client;
 
     /* Check wether creating the client object succeeded */
     if (!client) {
@@ -231,6 +230,12 @@ void node_avahi_pub_publish(struct ServiceInfo* serviceInfo) {
     }
 
     return 0;
+}
+
+void node_avahi_pub_remove(struct ServiceInfo* serviceInfo) {
+  avahi_entry_group_reset(serviceInfo->group);
+  avahi_free(serviceInfo->client);
+  avahi_free(serviceInfo->group);
 }
 
 static void node_avahi_pub_poll() {
@@ -249,12 +254,60 @@ static int node_avahi_pub_init() {
 
 } // End extern
 
+
+
+
 using namespace v8;
 
-Handle<Value> Publish(const Arguments& args) {
+class NodeAvahiPubService : public node::ObjectWrap {
+ public:
+  static void Init();
+  static v8::Handle<v8::Value> NewInstance(const v8::Arguments& args);
+
+ private:
+  NodeAvahiPubService();
+  ~NodeAvahiPubService();
+
+  static v8::Persistent<v8::Function> constructor;
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Remove(const v8::Arguments& args);
+  struct ServiceInfo serviceInfo_;
+};
+
+
+
+
+NodeAvahiPubService::NodeAvahiPubService() {};
+NodeAvahiPubService::~NodeAvahiPubService() {};
+
+Persistent<Function> NodeAvahiPubService::constructor;
+
+void NodeAvahiPubService::Init() {
+  // Prepare constructor template
+  Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
+  tpl->SetClassName(String::NewSymbol("NodeAvahiPubService"));
+  tpl->InstanceTemplate()->SetInternalFieldCount(1);
+  // Prototype
+  tpl->PrototypeTemplate()->Set(String::NewSymbol("remove"),
+      FunctionTemplate::New(Remove)->GetFunction());
+
+  constructor = Persistent<Function>::New(tpl->GetFunction());
+}
+
+Handle<Value> NodeAvahiPubService::NewInstance(const Arguments& args) {
+  HandleScope scope;
+
+  const unsigned argc = 1;
+  Handle<Value> argv[argc] = { args[0] };
+
+  Local<Object> instance = constructor->NewInstance(argc, argv);
+
+  return scope.Close(instance);
+}
+
+Handle<Value> NodeAvahiPubService::New(const Arguments& args) {
   HandleScope scope;
   Local<Object> opts = args[0]->ToObject();
-  v8::Local<v8::Object> ret = v8::Object::New();
   v8::String::Utf8Value name(
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("name")) )
   );
@@ -265,7 +318,10 @@ Handle<Value> Publish(const Arguments& args) {
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("data")) )
   );
 
+  NodeAvahiPubService* obj = new NodeAvahiPubService();
+
   struct ServiceInfo serviceInfo;
+
   serviceInfo.name = *name;
   serviceInfo.type = *type;
   serviceInfo.data = *data;
@@ -273,12 +329,29 @@ Handle<Value> Publish(const Arguments& args) {
 
   node_avahi_pub_publish(&serviceInfo);
 
-  // ret = v8::Object::New();
-  ret->Set( String::NewSymbol("name"), String::New(*name) );
-  ret->Set( String::NewSymbol("type"), String::New(*type) );
-  ret->Set( String::NewSymbol("data"), String::New(*data) );
-  ret->Set( String::NewSymbol("_serviceInfo"), External::New(&serviceInfo) );
-  return scope.Close(ret);
+  obj->serviceInfo_ = serviceInfo;
+  obj->Wrap(args.This());
+
+  return scope.Close(args.This());
+}
+
+Handle<Value> NodeAvahiPubService::Remove(const Arguments& args) {
+  HandleScope scope;
+
+  NodeAvahiPubService* obj = ObjectWrap::Unwrap<NodeAvahiPubService>(args.This());
+  node_avahi_pub_remove( &(obj->serviceInfo_) );
+
+  return scope.Close(args.This());
+}
+
+
+
+
+
+Handle<Value> Publish(const Arguments& args) {
+  HandleScope scope;
+  // NodeAvahiPubService::NewInstance(args);
+  return scope.Close(NodeAvahiPubService::NewInstance(args));
 }
 
 Handle<Value> Init(const Arguments& args) {
@@ -293,18 +366,12 @@ Handle<Value> Poll(const Arguments& args) {
   return scope.Close(Undefined());
 }
 
-Handle<Value> Remove(const Arguments& args) {
-  HandleScope scope;
-  return scope.Close(Undefined());
-}
-
 void init(Handle<Object> exports) {
+  NodeAvahiPubService::Init();
   exports->Set(String::NewSymbol("publish"),
       FunctionTemplate::New(Publish)->GetFunction());
   exports->Set(String::NewSymbol("poll"),
       FunctionTemplate::New(Poll)->GetFunction());
-  exports->Set(String::NewSymbol("remove"),
-      FunctionTemplate::New(Remove)->GetFunction());
   exports->Set(String::NewSymbol("init"),
       FunctionTemplate::New(Init)->GetFunction());
 }

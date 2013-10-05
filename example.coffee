@@ -1,8 +1,10 @@
-console.log avahi = require('bindings')('avahi_pub.node')
+avahi = require('./avahi_pub')
 
-avahi.init()
-setInterval( avahi.poll, 1000)
+# Advertise a _construct._tcp service named MyService with txtdata 
+service = avahi.publish
+  name: "MyService"
+  type: "_construct._tcp"
+  data: "myData"
 
-console.log avahi.publish(name: "Test", type: "_construct._tcp", data: "data")
-avahi.poll()
-
+# Stop advertising that service 4 seconds later
+setTimeout( ( -> service.remove() ), 4000);
