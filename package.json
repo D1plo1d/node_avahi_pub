@@ -2,7 +2,7 @@
   "name": "node_avahi_pub",
   "version": "0.0.0",
   "description": "",
-  "main": "node_avahi_pub.js",
+  "main": "node_avahi_pub.coffee",
   "directories": {
     "test": "test"
   },
@@ -12,6 +12,7 @@
   }
   , "dependencies": {
     "bindings": "*"
+    "coffee-script": "*"
   },
   "author": "D1plo1d",
   "license": "MIT",
