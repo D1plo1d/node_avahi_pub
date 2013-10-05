@@ -1,0 +1,19 @@
+{
+  "name": "node_avahi_pub",
+  "version": "0.0.0",
+  "description": "",
+  "main": "node_avahi_pub.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "node-gyp rebuild"
+  }
+  , "dependencies": {
+    "bindings": "*"
+  },
+  "author": "D1plo1d",
+  "license": "MIT",
+  "gypfile": true
+}
