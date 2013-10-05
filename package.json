@@ -1,8 +1,8 @@
 {
-  "name": "node_avahi_pub",
+  "name": "avahi_pub",
   "version": "0.1.0",
   "description": "",
-  "main": "node_avahi_pub.coffee",
+  "main": "avahi_pub.coffee",
   "directories": {
     "test": "test"
   },
