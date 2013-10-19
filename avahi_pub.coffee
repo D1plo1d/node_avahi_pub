@@ -8,6 +8,10 @@ module.exports =
     return service
   isSupported: ->
     os.platform() == 'linux'
+  kill: ->
+    clearInterval interval
 
 bindings.init()
-setInterval( bindings.poll, 1000) if module.exports.isSupported()
+
+if module.exports.isSupported()
+  interval = setInterval( bindings.poll, 1000)

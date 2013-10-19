@@ -45,7 +45,6 @@ extern "C" {
 #include <avahi-common/timeval.h>
 
 static AvahiSimplePoll *simple_poll = NULL;
-static char *name = NULL;
 
 struct ServiceInfo {
   char* name;
@@ -60,7 +59,8 @@ static void create_services(AvahiClient *c, ServiceInfo * userdata);
 static void node_avahi_pub_poll();
 
 static void entry_group_callback(AvahiEntryGroup *g, AvahiEntryGroupState state, AVAHI_GCC_UNUSED ServiceInfo *userdata) {
-    // assert(g == userdata->group || userdata->group == NULL);
+
+    if ( !(g == userdata->group || userdata->group == NULL) ) return;
     userdata->group = g;
 
     /* Called whenever the entry group state changes */
@@ -68,7 +68,7 @@ static void entry_group_callback(AvahiEntryGroup *g, AvahiEntryGroupState state,
     switch (state) {
         case AVAHI_ENTRY_GROUP_ESTABLISHED :
             /* The entry group has been established successfully */
-            fprintf(stderr, "Service '%s' successfully established.\n", name);
+            fprintf(stderr, "Service '%s' successfully established.\n", userdata->name);
             break;
 
         case AVAHI_ENTRY_GROUP_COLLISION : {
@@ -76,11 +76,11 @@ static void entry_group_callback(AvahiEntryGroup *g, AvahiEntryGroupState state,
 
             /* A service name collision with a remote service
              * happened. Let's pick a new name */
-            n = avahi_alternative_service_name(name);
-            avahi_free(name);
-            name = n;
+            n = avahi_alternative_service_name(userdata->name);
+            avahi_free(userdata->name);
+            userdata->name = n;
 
-            fprintf(stderr, "Service name collision, renaming service to '%s'\n", name);
+            fprintf(stderr, "Service name collision, renaming service to '%s'\n", userdata->name);
 
             /* And recreate the services */
             create_services(avahi_entry_group_get_client(g), userdata);
@@ -110,24 +110,26 @@ static void create_services(AvahiClient *c, ServiceInfo * userdata) {
      * entry group if necessary */
     if (!(userdata->group))
     {
-        if (!((userdata->group) = avahi_entry_group_new(c, entry_group_callback, userdata))) {
+        if (!(userdata->group = avahi_entry_group_new(c, entry_group_callback, userdata))) {
             fprintf(stderr, "avahi_entry_group_new() failed: %s\n", 
               avahi_strerror(avahi_client_errno(c)));
             goto fail;
         }
+        // fprintf(stderr, "Group!! '%u'\n", userdata->group);
+
     }
 
     /* If the group is empty (either because it was just created, or
      * because it was reset previously, add our entries.  */
     if (avahi_entry_group_is_empty(userdata->group)) {
-        fprintf(stderr, "Adding service '%s'\n", name);
+        fprintf(stderr, "Adding service '%s'\n", userdata->name);
 
         /* Only services with the same name should be put in the same entry 
          * group. */
 
         /* Add the service */
         ret = avahi_entry_group_add_service(
-          userdata->group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, name, userdata->type,
+          userdata->group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, 0, userdata->name, userdata->type,
           NULL, NULL, userdata->port, userdata->data, NULL
         );
         if (ret < 0) {
@@ -152,11 +154,11 @@ collision:
 
     /* A service name collision with a local service happened. Let's
      * pick a new name */
-    n = avahi_alternative_service_name(name);
-    avahi_free(name);
-    name = n;
+    n = avahi_alternative_service_name(userdata->name);
+    avahi_free(userdata->name);
+    userdata->name = n;
 
-    fprintf(stderr, "Service name collision, renaming service to '%s'\n", name);
+    fprintf(stderr, "Service name collision, renaming service to '%s'\n", userdata->name);
 
     avahi_entry_group_reset(userdata->group);
 
@@ -218,8 +220,6 @@ void node_avahi_pub_publish(struct ServiceInfo* serviceInfo) {
     struct timeval tv;
     int i;
 
-    name = avahi_strdup(serviceInfo->name);
-
     /* Allocate a new client */
     client = avahi_client_new(avahi_simple_poll_get(simple_poll), 0, client_callback, serviceInfo, &error);
     serviceInfo->client = client;
@@ -227,7 +227,6 @@ void node_avahi_pub_publish(struct ServiceInfo* serviceInfo) {
     /* Check wether creating the client object succeeded */
     if (!client) {
         fprintf(stderr, "Failed to create client: %s\n", avahi_strerror(error));
-        avahi_free(name);
         return 1;
     }
 
@@ -235,9 +234,12 @@ void node_avahi_pub_publish(struct ServiceInfo* serviceInfo) {
 }
 
 void node_avahi_pub_remove(struct ServiceInfo* serviceInfo) {
+
   avahi_entry_group_reset(serviceInfo->group);
-  avahi_free(serviceInfo->client);
-  avahi_free(serviceInfo->group);
+  avahi_entry_group_free(serviceInfo->group);
+  avahi_client_free(serviceInfo->client);
+
+  free((void*)serviceInfo);
 }
 
 static void node_avahi_pub_poll() {
@@ -273,7 +275,7 @@ class NodeAvahiPubService : public node::ObjectWrap {
   static v8::Persistent<v8::Function> constructor;
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Remove(const v8::Arguments& args);
-  struct ServiceInfo serviceInfo_;
+  struct ServiceInfo * serviceInfo_;
 };
 
 
@@ -310,13 +312,13 @@ Handle<Value> NodeAvahiPubService::NewInstance(const Arguments& args) {
 Handle<Value> NodeAvahiPubService::New(const Arguments& args) {
   HandleScope scope;
   Local<Object> opts = args[0]->ToObject();
-  v8::String::Utf8Value name(
+  v8::String::Utf8Value * name = new v8::String::Utf8Value(
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("name")) )
   );
-  v8::String::Utf8Value type(
+  v8::String::Utf8Value * type = new v8::String::Utf8Value(
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("type")) )
   );
-  v8::String::Utf8Value data(
+  v8::String::Utf8Value * data = new v8::String::Utf8Value(
     v8::Handle<v8::String>::Cast( opts->Get(String::NewSymbol("data")) )
   );
   int port =
@@ -324,15 +326,15 @@ Handle<Value> NodeAvahiPubService::New(const Arguments& args) {
 
   NodeAvahiPubService* obj = new NodeAvahiPubService();
 
-  struct ServiceInfo serviceInfo;
+  struct ServiceInfo * serviceInfo = malloc(sizeof(ServiceInfo));
 
-  serviceInfo.name = *name;
-  serviceInfo.type = *type;
-  serviceInfo.data = *data;
-  serviceInfo.port = port;
-  serviceInfo.group = NULL;
+  serviceInfo->name = *(*name);
+  serviceInfo->type = *(*type);
+  serviceInfo->data = *(*data);
+  serviceInfo->port = port;
+  serviceInfo->group = NULL;
 
-  node_avahi_pub_publish(&serviceInfo);
+  node_avahi_pub_publish(serviceInfo);
 
   obj->serviceInfo_ = serviceInfo;
   obj->Wrap(args.This());
@@ -344,7 +346,7 @@ Handle<Value> NodeAvahiPubService::Remove(const Arguments& args) {
   HandleScope scope;
 
   NodeAvahiPubService* obj = ObjectWrap::Unwrap<NodeAvahiPubService>(args.This());
-  node_avahi_pub_remove( &(obj->serviceInfo_) );
+  node_avahi_pub_remove( obj->serviceInfo_ );
 
   return scope.Close(args.This());
 }

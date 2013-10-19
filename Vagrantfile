@@ -8,6 +8,7 @@
 # sudo add-apt-repository ppa:chris-lea/node.js
 # sudo apt-get update
 # sudo apt-get install nodejs
+# sudo npm install -g node-gyp
 # sudo npm install -g coffee-script
 
 # rm ./build/Release/avahi_pub.node; node-gyp configure build && coffee ./example.coffee
@@ -32,6 +33,7 @@ Vagrant.configure("2") do |config|
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
   # config.vm.network :forwarded_port, guest: 80, host: 8080
+  config.vm.network :forwarded_port, guest: 22, host: 5915
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
