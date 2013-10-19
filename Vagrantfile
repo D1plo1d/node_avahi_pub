@@ -3,6 +3,11 @@
 
 # sudo apt-get install avahi-daemon g++ libavahi-client-dev
 # echo 'PATH="$PATH:/usr/lib/node_modules/npm/bin/"' > ~/.bashrc
+# sudo apt-get update
+# sudo apt-get install python-software-properties python g++ make
+# sudo add-apt-repository ppa:chris-lea/node.js
+# sudo apt-get update
+# sudo apt-get install nodejs
 # sudo npm install -g coffee-script
 
 # rm ./build/Release/avahi_pub.node; node-gyp configure build && coffee ./example.coffee
